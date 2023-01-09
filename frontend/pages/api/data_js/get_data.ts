@@ -9,7 +9,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
+  console.log("This is within the get data call")
   let encryptedToken = req.headers['access_token']
+  console.log("Encrypted token: ", encryptedToken);
   if (encryptedToken === null || encryptedToken === undefined){
     return res.status(400).json({ status: 'Token was not found' })
   }
