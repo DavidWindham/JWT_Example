@@ -21,6 +21,7 @@ export const AuthFetch = {
     }
     return fetch(url, authWrappedOptions).then(response => {
       if (response.status === 401) {
+        console.log("Attempting to fetch new token")
         // request returned a 401 status, handle this case
         if (TokenStorage.shouldTokenRefresh()){
           TokenStorage.setRefreshFalse()

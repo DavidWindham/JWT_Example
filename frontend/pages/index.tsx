@@ -21,12 +21,17 @@ export default function Home() {
     setRefreshToken(TokenStorage.getRefreshToken())
   }, [])
 
+  const setArtificialAccessToken = () => {
+    TokenStorage.storeAccessToken('fake_token')
+  }
+
   return (
     <>
       <Head>
         <title>JWT Example</title>
       </Head>
       <div style={{display: "flex", width: "100%", marginRight: "1rem"}}>
+        <button onClick={setArtificialAccessToken}>SET ARTIFICIAL TOKEN</button>
         <LoginRegisterParent />
         <div>
           Data fetching area
