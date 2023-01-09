@@ -49,12 +49,12 @@ async fn main() -> io::Result<()> {
         .build(manager)
         .expect("Failed to create pool");
 
-    let db_connection = &mut establish_connection();
+    let _db_connection = &mut establish_connection();
 
     HttpServer::new(move || {
         App::new()
             // Set up DB pool to be used with web::Data<Pool> extractor
-            .data(pool.clone())
+            .app_data(pool.clone())
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
             // register HTTP requests handlers
