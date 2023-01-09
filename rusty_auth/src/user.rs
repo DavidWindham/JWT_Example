@@ -139,20 +139,28 @@ pub async fn register_new_user(
         let new_user_call =
             web::block(move || register_new_user_to_db(&mut conn, user_from_request)).await;
         return match new_user_call {
-            Ok(new_user_insert) => match new_user_insert {
-                Ok(new_user) => {
-                    println!("New user success {} - {}", new_user.username, new_user.id);
-                    HttpResponse::Accepted()
-                        .content_type(APPLICATION_JSON)
-                        .json({})
+            Ok(new_user_insert) => {
+                match new_user_insert {
+                    Ok(new_user) => {
+                        let access_token = new_user.generate_access_token();
+                        let refresh_token = new_user.generate_refresh_token();
+                        return HttpResponse::Accepted()
+                            .content_type(APPLICATION_JSON)
+                            .json(json!({ "access_token": access_token, "refresh_token": refresh_token }));
+
+                        // println!("New user success {} - {}", new_user.username, new_user.id);
+                        // HttpResponse::Accepted()
+                        //     .content_type(APPLICATION_JSON)
+                        //     .json({})
+                    }
+                    Err(e) => {
+                        eprintln!("Error inserting new user: {}", e);
+                        HttpResponse::Conflict()
+                            .content_type(APPLICATION_JSON)
+                            .json({})
+                    }
                 }
-                Err(e) => {
-                    eprintln!("Error inserting new user: {}", e);
-                    HttpResponse::Conflict()
-                        .content_type(APPLICATION_JSON)
-                        .json({})
-                }
-            },
+            }
             Err(e) => HttpResponse::NotAcceptable()
                 .content_type(APPLICATION_JSON)
                 .json({}),

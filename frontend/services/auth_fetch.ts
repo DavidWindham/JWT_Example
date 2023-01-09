@@ -6,10 +6,22 @@ interface FetchOptions extends RequestInit {
 
 export const AuthFetch = {
   fetch(url: string, options?: FetchOptions): Promise<Response> {
-    return fetch(url, options).then(response => {
+    let access_token_init = TokenStorage.getAccessToken();
+
+    if (access_token_init == null){
+      return Promise.reject();
+    }
+
+    const authWrappedOptions = {
+      ...options,
+      headers: {
+        ...options?.headers,
+        access_token: access_token_init
+      }
+    }
+    return fetch(url, authWrappedOptions).then(response => {
       if (response.status === 401) {
         // request returned a 401 status, handle this case
-        console.log("Refresh status: ", TokenStorage.shouldTokenRefresh())
         if (TokenStorage.shouldTokenRefresh()){
           TokenStorage.setRefreshFalse()
           return TokenStorage.getNewToken()

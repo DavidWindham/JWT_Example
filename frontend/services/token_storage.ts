@@ -60,8 +60,7 @@ export class TokenStorage {
             }
         };
 
-        AuthFetch
-            .fetch('/api/auth/refresh_token', options)
+        fetch('/api/auth/refresh_token', options)
             .then(response => response.json())
             .then(data => {
                 this.storeAccessToken(data.access_token)
