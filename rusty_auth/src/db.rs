@@ -81,30 +81,53 @@ pub fn login_user_against_db(
     return Ok(user_db.to_user());
 }
 
-pub fn _save_refresh_token_to_db(
+pub fn get_user_from_uuid(
     conn: &mut DBPooledConnection,
-    refresh_token: RefreshToken,
-) -> Result<RefreshToken, String> {
-    let refresh_token_db = refresh_token.to_db();
-    let insert_call: Result<usize, diesel::result::Error> =
-        diesel::insert_into(refresh_tokens::table)
-            .values(&refresh_token_db)
-            .execute(conn);
-
-    let refresh_insert_usize = match insert_call {
-        Ok(refresh_insert_usize) => refresh_insert_usize,
+    user_uuid: uuid::Uuid,
+) -> Result<User, String> {
+    use crate::schema::users::dsl::*;
+    let user_call = users.filter(id.eq(user_uuid)).first::<UserDB>(conn);
+    let user_db = match user_call {
+        Ok(user_db) => user_db,
         Err(e) => {
-            eprintln!("Error inserting token into DB: {}", e);
-            return Err("Couldn't insert new refresh token into DB".to_string());
+            eprintln!("Error getting user from DB: {}", e);
+            return Err(format!("Error getting user from DB: {}", e));
         }
     };
+    Ok(user_db.to_user())
+}
 
-    if refresh_insert_usize != 1 {
-        eprintln!("Refresh token was already found in DB, this shouldn't happen");
-        return Err("Refresh token was already found in DB, this shouldn't happen".to_string());
-    }
+// pub fn _save_refresh_token_to_db(
+//     conn: &mut DBPooledConnection,
+//     refresh_token: RefreshToken,
+// ) -> Result<RefreshToken, String> {
+//     let refresh_token_db = refresh_token.to_db();
+//     let insert_call: Result<usize, diesel::result::Error> =
+//         diesel::insert_into(refresh_tokens::table)
+//             .values(&refresh_token_db)
+//             .execute(conn);
 
-    return Ok(refresh_token_db.to_refresh_token());
+//     let refresh_insert_usize = match insert_call {
+//         Ok(refresh_insert_usize) => refresh_insert_usize,
+//         Err(e) => {
+//             eprintln!("Error inserting token into DB: {}", e);
+//             return Err("Couldn't insert new refresh token into DB".to_string());
+//         }
+//     };
+
+//     if refresh_insert_usize != 1 {
+//         eprintln!("Refresh token was already found in DB, this shouldn't happen");
+//         return Err("Refresh token was already found in DB, this shouldn't happen".to_string());
+//     }
+
+//     return Ok(refresh_token_db.to_refresh_token());
+// }
+
+pub fn _blacklist_refresh_token(
+    conn: &mut DBPooledConnection,
+    refresh_token: RefreshToken,
+) -> Result<String, String> {
+    Ok("".to_string())
 }
 
 pub fn _check_refresh_token_against_db(

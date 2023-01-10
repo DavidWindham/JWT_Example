@@ -1,7 +1,9 @@
+use crate::consts::CONNECTION_POOL_ERROR;
+use crate::db::get_user_from_uuid;
 use crate::user::User;
-use crate::DBPool;
 use crate::{consts::APPLICATION_JSON, schema::refresh_tokens};
-use actix_web::HttpRequest;
+use crate::{DBPool, DBPooledConnection};
+use actix_web::{web, HttpRequest};
 use actix_web::{
     web::{Data, Json},
     HttpResponse,
@@ -10,6 +12,7 @@ use chrono::{Duration, NaiveDateTime, Utc};
 use diesel::Queryable;
 use hmac::{Hmac, Mac};
 use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token, VerifyWithKey};
+use rusty_auth::auth_errors::access_token_errors::TokenError;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::Sha384;
@@ -19,6 +22,7 @@ use std::env;
 pub struct RefreshToken {
     pub id: uuid::Uuid,
     pub user_id: uuid::Uuid,
+    pub username: String,
     pub token: String,
     pub valid_until: NaiveDateTime,
 }
@@ -28,6 +32,7 @@ impl RefreshToken {
         Self {
             id: uuid::Uuid::new_v4(),
             user_id: user.id,
+            username: user.username,
             token: token,
             valid_until: (Utc::now() + Duration::minutes(2)).naive_utc(),
         }
@@ -41,6 +46,10 @@ impl RefreshToken {
             valid_until: self.valid_until,
         }
     }
+
+    // pub fn generate_new_access_token(&self) -> Result<String, String> {
+    //     // generate_access_token(username)
+    // }
 }
 
 #[derive(Queryable, Insertable)]
@@ -53,13 +62,21 @@ pub struct RefreshTokenDB {
 }
 
 impl RefreshTokenDB {
-    pub fn to_refresh_token(&self) -> RefreshToken {
-        RefreshToken {
+    pub fn to_refresh_token(&self, conn: &mut DBPooledConnection) -> Result<RefreshToken, String> {
+        let user = match get_user_from_uuid(conn, self.user_id.clone()) {
+            Ok(user) => user,
+            Err(e) => {
+                eprintln!("Error getting assoc'd user");
+                return Err(format!("Error getting user for refresh token: {}", e));
+            }
+        };
+        Ok(RefreshToken {
             id: self.id,
             user_id: self.user_id,
+            username: user.username,
             token: self.token.clone(),
             valid_until: self.valid_until,
-        }
+        })
     }
 }
 
@@ -68,7 +85,9 @@ pub struct RefreshTokenRequest {
     pub refresh_token: Option<String>,
 }
 
-impl RefreshTokenRequest {}
+impl RefreshTokenRequest {
+    pub fn get_refresh_token(&self) {}
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AccessTokenRequest {
@@ -100,12 +119,18 @@ pub async fn verify_token(request: HttpRequest) -> HttpResponse {
 
     let status = match is_access_token_valid(token) {
         Ok(status) => status,
-        Err(e) => {
-            eprintln!("Error validating call: {}", e);
-            return HttpResponse::NotAcceptable()
-                .content_type(APPLICATION_JSON)
-                .json(json!({ "status": e.clone() }));
-        }
+        Err(e) => match e {
+            TokenError::ExpiredToken => {
+                return HttpResponse::Unauthorized()
+                    .content_type(APPLICATION_JSON)
+                    .json(json!({ "status": e.to_string() }));
+            }
+            _ => {
+                return HttpResponse::NotAcceptable()
+                    .content_type(APPLICATION_JSON)
+                    .json(json!({ "status": e.to_string() }));
+            }
+        },
     };
 
     return HttpResponse::Accepted()
@@ -116,7 +141,7 @@ pub async fn verify_token(request: HttpRequest) -> HttpResponse {
 #[post("/refresh_token")]
 pub async fn refresh_token(
     refresh_token_request: Json<RefreshTokenRequest>,
-    _pool: Data<DBPool>,
+    pool: Data<DBPool>,
 ) -> HttpResponse {
     let refresh_validation_call = is_refresh_token_valid(
         refresh_token_request
@@ -125,6 +150,12 @@ pub async fn refresh_token(
             .unwrap()
             .as_str(),
     );
+
+    let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
+    // let login_web_blocked_call =
+    // web::block(move || login_user_against_db(&mut conn, username, password)).await;
+
+    // RefreshTokenRequest.to_refresh_token()
 
     let username = match refresh_validation_call {
         Ok(un) => un,
@@ -211,7 +242,7 @@ pub fn generate_access_token(username: String) -> Result<String, String> {
     return Ok(token.as_str().to_string());
 }
 
-pub fn is_access_token_valid(token_str: &str) -> Result<String, String> {
+pub fn is_access_token_valid(token_str: &str) -> Result<String, TokenError> {
     let access_token_secret =
         env::var("ACCESS_TOKEN_SECRET").expect("ACCESS_TOKEN_SECRET must be set");
 
@@ -223,37 +254,34 @@ pub fn is_access_token_valid(token_str: &str) -> Result<String, String> {
         Ok(token) => token,
         Err(e) => {
             eprintln!("Error verifying token, token is invalid: {}", e);
-            return Err(
-                "Access Token could not be verified, it's likely been tampered with".to_string(),
-            );
+            return Err(TokenError::InvalidToken);
         }
     };
 
     let header = token.header();
     let claims = token.claims();
     if header.algorithm != AlgorithmType::Hs384 {
-        return Err("Header has the incorrect algorithm".to_string());
+        return Err(TokenError::InvalidHeaderAlgorithm);
     }
 
     let expiry = match claims["exp"].as_i64() {
         Some(expiry) => expiry,
         None => {
             eprintln!("Error unwrapping expiry");
-            return Err("Could not digest token, expiery error".to_string());
+            return Err(TokenError::InvalidExpiry);
         }
     };
 
     let exp_naive_datetime = match NaiveDateTime::from_timestamp_opt(expiry, 0) {
         Some(exp) => exp,
-        None => return Err("Could not create expiry datetime".to_string()),
+        None => return Err(TokenError::InvalidToken),
     };
 
     if exp_naive_datetime < Utc::now().naive_utc() {
         println!("Token has expired");
-        return Err("Token expired".to_string());
+        return Err(TokenError::ExpiredToken);
     }
 
-    println!("Token is still valid");
     return Ok("Token is valid".to_string());
 }
 
@@ -298,6 +326,8 @@ pub fn generate_refresh_token(username: String) -> Result<String, String> {
             return Err(format!("Error getting token: {}", e));
         }
     };
+
+    // RefreshTokenDB::new()
 
     // let RefreshToken =
     return Ok(token.as_str().to_string());
