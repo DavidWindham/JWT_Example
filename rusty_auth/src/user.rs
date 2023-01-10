@@ -1,10 +1,10 @@
 use crate::auth::{generate_access_token, generate_refresh_token};
-use crate::DBPool;
 use crate::{
     consts::{APPLICATION_JSON, CONNECTION_POOL_ERROR},
     db::{login_user_against_db, register_new_user_to_db},
     schema::users,
 };
+use crate::{DBPool, DBPooledConnection};
 use actix_web::{
     web::{self, Data, Json},
     HttpResponse,
@@ -136,7 +136,46 @@ pub struct LoginUserRequest {
     pub password: Option<String>,
 }
 
-impl LoginUserRequest {}
+impl LoginUserRequest {
+    pub fn validate_inputs(&self) -> Result<(), String> {
+        match self.username.clone() {
+            Some(_) => (),
+            None => return Err("Missing username".to_string()),
+        };
+
+        match self.password.clone() {
+            Some(_) => (),
+            None => return Err("Missing password".to_string()),
+        };
+
+        Ok(())
+    }
+    pub async fn to_user(&self, mut conn: DBPooledConnection) -> Result<User, String> {
+        let username = self.username.clone().unwrap();
+        let password = self.password.clone().unwrap();
+
+        let web_block_call =
+            web::block(move || login_user_against_db(&mut conn, username, password)).await;
+
+        let user_login_call = match web_block_call {
+            Ok(user_login_call) => user_login_call,
+            Err(e) => {
+                eprintln!("Error with web block: {}", e);
+                return Err(format!("Error fetching user: {}", e));
+            }
+        };
+
+        let user = match user_login_call {
+            Ok(user) => user,
+            Err(e) => {
+                eprintln!("Error getting user: {}", e);
+                return Err(format!("Error getting user: {}", e));
+            }
+        };
+
+        return Ok(user);
+    }
+}
 
 #[post("/register")]
 pub async fn register_new_user(
@@ -203,49 +242,27 @@ pub async fn login_user(
     login_user_request: Json<LoginUserRequest>,
     pool: Data<DBPool>,
 ) -> HttpResponse {
-    let username = match login_user_request.username.clone() {
-        Some(username) => username,
-        None => {
-            return HttpResponse::NotAcceptable()
-                .content_type(APPLICATION_JSON)
-                .json(json!({"status": "No username provided"}))
-        }
-    };
-
-    let password = match login_user_request.password.clone() {
-        Some(password) => password,
-        None => {
-            return HttpResponse::NotAcceptable()
-                .content_type(APPLICATION_JSON)
-                .json(json!({"status": "No password provided"}))
-        }
-    };
-
-    let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
-    let login_web_blocked_call =
-        web::block(move || login_user_against_db(&mut conn, username, password)).await;
-
-    let login_call = match login_web_blocked_call {
-        Ok(login_call) => login_call,
+    match login_user_request.validate_inputs() {
+        Ok(_) => (),
         Err(e) => {
+            eprintln!("Error checking username and password: {}", e);
             return HttpResponse::NotAcceptable()
                 .content_type(APPLICATION_JSON)
-                .json(json!({
-                    "status": format!("Failed to attempt to login: {}", e)
-                }))
+                .json(json!({"status": "No username or password provided"}));
         }
-    };
+    }
 
-    let logged_in_user = match login_call {
-        Ok(logged_in_user) => logged_in_user,
+    let conn = pool.get().expect(CONNECTION_POOL_ERROR);
+    let logged_in_user = match login_user_request.to_user(conn).await {
+        Ok(user) => user,
         Err(e) => {
+            eprintln!("Error getting user: {}", e);
             return HttpResponse::NotAcceptable()
                 .content_type(APPLICATION_JSON)
-                .json(json!({ "status": format!("Failed login: {}", e) }))
+                .json(json!({ "status": format!("Failed to login: {}", e) }));
         }
     };
 
-    println!("Login success");
     // Here, I need to generate auth token and refresh token
     let access_token = match logged_in_user.generate_access_token() {
         Ok(access_token) => access_token,
