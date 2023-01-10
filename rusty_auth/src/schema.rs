@@ -6,6 +6,7 @@ diesel::table! {
         user_id -> Uuid,
         token -> Varchar,
         valid_until -> Timestamp,
+        blacklisted -> Bool,
     }
 }
 
@@ -20,4 +21,7 @@ diesel::table! {
 
 diesel::joinable!(refresh_tokens -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(refresh_tokens, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    refresh_tokens,
+    users,
+);
