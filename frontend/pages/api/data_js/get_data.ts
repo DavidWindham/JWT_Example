@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import {verify as jwtVerify } from 'jsonwebtoken'
+import {JsonWebTokenError, TokenExpiredError, verify as jwtVerify } from 'jsonwebtoken'
 
 type Data = {
   status: string
@@ -27,10 +27,16 @@ export default async function handler(
     }
     jwtVerify(encryptedToken, access_token_secret)
   }
-  catch {
-    console.log("Invalid token")
-    return res.status(401).json({ status: 'Token was expired or is invalid' })
+  catch(err) {
+    console.log("Token was invalid: " + err);
+    if (err instanceof TokenExpiredError){
+      return res.status(401).json({ status: 'Token was expired' + err })
+    }
+    // return res.status(401).json({ status: 'dumb' })
+    if (err instanceof JsonWebTokenError) {
+      return res.status(406).json({ status: 'Token was invalid, invalid signiature' + err})
+    }    
   }
-
+  console.log("so everythign was... fine?")
   return res.status(200).json({ status: 'Token validation success within Next API' })
 }

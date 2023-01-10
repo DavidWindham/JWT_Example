@@ -6,17 +6,18 @@ interface FetchOptions extends RequestInit {
 
 export const AuthFetch = {
   fetch(url: string, options?: FetchOptions): Promise<Response> {
-    let access_token_init = TokenStorage.getAccessToken();
+    let access_token_pre_resolve = TokenStorage.getAccessToken();
 
-    if (access_token_init == null){
+    if (access_token_pre_resolve == null){
       return Promise.reject();
     }
 
+    // inject auth header into the call
     const authWrappedOptions = {
       ...options,
       headers: {
         ...options?.headers,
-        access_token: access_token_init
+        access_token: access_token_pre_resolve
       }
     }
     return fetch(url, authWrappedOptions).then(response => {

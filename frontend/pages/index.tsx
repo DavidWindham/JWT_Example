@@ -13,13 +13,6 @@ import { LoginRegisterParent } from '../components/login/login_register_parent'
 const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
-  let [accessToken, setAccessToken] = useState<string|null>('')
-  let [refreshToken, setRefreshToken] = useState<string|null>('')
-  
-  useEffect(() => {
-    setAccessToken(TokenStorage.getAccessToken())
-    setRefreshToken(TokenStorage.getRefreshToken())
-  }, [])
 
   const setArtificialAccessToken = () => {
     TokenStorage.storeAccessToken('fake_token')
@@ -30,15 +23,19 @@ export default function Home() {
       <Head>
         <title>JWT Example</title>
       </Head>
-      <div style={{display: "flex", width: "100%", marginRight: "1rem"}}>
-        <button onClick={setArtificialAccessToken}>SET ARTIFICIAL TOKEN</button>
-        <LoginRegisterParent />
-        <div>
-          Data fetching area
-          <GetDataPython />
-          <GetDataNext />
-          <AccessTokenCheckAgainstAuth />
-        </div>
+      <div style={{width: "60%", marginLeft: "20%", marginRight: "20%", textAlign: "center"}}>
+      <div>
+          {/* <button onClick={setArtificialAccessToken}>SET ARTIFICIAL TOKEN</button> */}
+          <LoginRegisterParent />
+      </div>
+      <div style={{marginTop: "2rem", marginBottom: "1rem"}}>
+        Data fetching area
+      </div>
+      <div style={{display: "flex", width: "100%", marginRight: "1rem", marginBottom: "5rem"}}>
+        <GetDataPython />
+        <GetDataNext />
+        <AccessTokenCheckAgainstAuth />
+      </div>
       </div>
     </>
   )

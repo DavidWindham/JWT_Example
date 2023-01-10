@@ -6,7 +6,12 @@ export const GetDataNext = () => {
     let [statusColour, setStatusColour] = useState<string>('grey');
     const getData = () => {
         AuthFetch.fetch('/api/data_js/get_data', {method: 'POST'})
-        .then((response) => response.json())
+        .then((response) => {
+                if (response.status !== 200){
+                    throw new Error('Invalid status code: ' + response.status);
+                }
+                return response.json()
+            })
         .then((data) => {
             console.log(data);
             // setDataResponse(data)
@@ -21,11 +26,10 @@ export const GetDataNext = () => {
         }, 1000)
     }
 
-    return <><div>
-        <h2>Next data fetcher </h2>
+    return <>
+        <div style={{marginBottom: "2rem"}}>
+            Next data fetcher
+            <button onClick={getData} style={{ backgroundColor: statusColour, marginLeft: "1rem"  }}>Get Next Data</button>
         </div>
-        <div>
-        {dataResponse}
-    </div>
-    <button onClick={getData} style={{ backgroundColor: statusColour }}>Get Next Data</button></>
+    </>
 }

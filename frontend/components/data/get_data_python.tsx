@@ -7,7 +7,12 @@ export const GetDataPython = () => {
     let [statusColour, setStatusColour] = useState<string>('grey');
     const getData = () => {
         AuthFetch.fetch('/api/data_py/get_data', {method: 'POST'})
-            .then((response) => response.json())
+            .then((response) => {
+                if (response.status !== 200){
+                    throw new Error('Invalid status code: ' + response.status);
+                }
+                return response.json()
+            })
             .then((data) => {
                 console.log(data);
                 // setDataResponse(data)
@@ -23,11 +28,10 @@ export const GetDataPython = () => {
         }, 1000)
     }
 
-    return <><div>
-        <h2>Python data fetcher </h2>
+    return <>
+        <div style={{marginBottom: "2rem"}}>
+            Python data fetcher
+            <button onClick={getData} style={{ backgroundColor: statusColour, marginLeft: "1rem"  }}>Get Python Data</button>
         </div>
-        <div>
-        {dataResponse}
-    </div>
-    <button onClick={getData} style={{ backgroundColor: statusColour }}>Get Python Data</button></>
+    </>
 }

@@ -6,7 +6,12 @@ export const AccessTokenCheckAgainstAuth = () => {
     let [statusColour, setStatusColour] = useState<string>('grey');
     const getData = () => {
         AuthFetch.fetch('/api/auth/verify_token', {method: 'POST'})
-            .then((response) => response.json())
+            .then((response) => {
+                if (response.status !== 202){
+                    throw new Error('Invalid status code: ' + response.status);
+                }
+                return response.json()
+            })
             .then((data) => {
                 console.log(data);
                 // setDataResponse(data)
@@ -16,17 +21,15 @@ export const AccessTokenCheckAgainstAuth = () => {
                 // setDataResponse(error)
                 setStatusColour('red')
             })
-
         setTimeout(() => {
             setStatusColour('grey')
         }, 1000)
     }
 
-    return <><div>
-        <h2>Auth Server data fetcher </h2>
+    return <>
+        <div style={{marginBottom: "2rem"}}>
+            Auth Server data fetcher
+            <button onClick={getData} style={{ backgroundColor: statusColour, marginLeft: "1rem" }}>Check Token Against Auth Server</button>
         </div>
-        <div>
-        {dataResponse}
-    </div>
-    <button onClick={getData} style={{ backgroundColor: statusColour }}>Check Token Against Auth Server</button></>
+    </>
 }
