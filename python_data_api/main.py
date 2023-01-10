@@ -24,10 +24,10 @@ def check_access_token(func):
         try:
             jwt.decode(encoded_jwt, ACCESS_TOKEN_SECRET, algorithms=["HS384"])
         except jwt.exceptions.ExpiredSignatureError:
-            return jsonify({"error": "Token was not valid"}), 401
+            return jsonify({"error": "Token has expired"}), 401
         except jwt.exceptions.DecodeError:
-            return jsonify({"error": "Failed to decode token, tampered with?"}), 401
-        except : 
+            return jsonify({"error": "Failed to decode token, tampered with?"}), 406
+        except:
             return jsonify({"error": "I have no idea what you've done to get this error"}), 500
 
         return func(*args, **kwargs)
