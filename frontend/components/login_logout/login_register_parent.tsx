@@ -21,6 +21,8 @@ export const LoginRegisterParent = (props: login_register_props) => {
             password: password
         };
 
+        console.log("Un/pw: ", data);
+
         const options = {
             method: 'POST',
             body: JSON.stringify(data),
@@ -30,7 +32,12 @@ export const LoginRegisterParent = (props: login_register_props) => {
         };
 
         fetch('/api/auth/login', options)
-            .then(response => response.json())
+            .then((response) => {
+                if (response.status !== 202){
+                    throw new Error('Invalid status code: ' + response.status);
+                }
+                return response.json()
+            })
             .then(data => {
                 let bothTokenObject = {
                     "access_token": data.access_token,
@@ -65,7 +72,12 @@ export const LoginRegisterParent = (props: login_register_props) => {
         };
 
         fetch('/api/auth/register', options)
-            .then(response => response.json())
+            .then((response) => {
+                if (response.status !== 202){
+                    throw new Error('Invalid status code: ' + response.status);
+                }
+                return response.json()
+            })
             .then(data => {
                 let bothTokenObject = {
                     "access_token": data.access_token,
@@ -84,16 +96,21 @@ export const LoginRegisterParent = (props: login_register_props) => {
         }, 1000)
     }
 
+    const logout = async () => {
+        // TODO: Call logout route
+        props.setLoggedIn(false)
+    }
+
     return <>
         {props.loggedInStatus ? 
-        <></> :
+        <><button onClick={logout}>Logout</button></>:
         <div>
             <div>
                 <div>
-                    Username: <input onChange={onUsernameChange}></input>
+                    Username: <input onChange={onUsernameChange} value={username}></input>
                 </div>
                 <div>
-                    Password: <input onChange={onPasswordChange}></input> 
+                    Password: <input onChange={onPasswordChange} value={password}></input> 
                 </div>
             </div>
             <button onClick={login} style={{width:"50%", backgroundColor: loginStatusColour}}>Login</button>

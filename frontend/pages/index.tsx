@@ -7,8 +7,8 @@ import { useEffect, useState } from 'react'
 import { TokenStorage } from '../services/token_storage'
 import { GetDataPython } from '../components/data/get_data_python'
 import { GetDataNext } from '../components/data/get_data_next'
-import { AccessTokenCheckAgainstAuth } from '../components/login/sub_components/access_token_check_against_auth'
-import { LoginRegisterParent } from '../components/login/login_register_parent'
+import { AccessTokenCheckAgainstAuth } from '../components/login_logout/sub_components/access_token_check_against_auth'
+import { LoginRegisterParent } from '../components/login_logout/login_register_parent'
 
 const inter = Inter({ subsets: ['latin'] })
 
