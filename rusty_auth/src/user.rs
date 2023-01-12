@@ -1,3 +1,5 @@
+use std::env;
+
 use crate::auth::{generate_access_token, generate_refresh_token};
 use crate::{
     consts::{APPLICATION_JSON, CONNECTION_POOL_ERROR},
@@ -43,7 +45,7 @@ impl User {
     }
 
     fn generate_password_hash(password: &str) -> Result<HashParts, BcryptError> {
-        let salt = "password_salt";
+        let salt = env::var("PASSWORD_SALT").expect("PASSWORD_SALT must be set");
         let mut salt_arr = [0; 16];
         salt_arr[..salt.len()].copy_from_slice(salt.as_bytes());
         return bcrypt::hash_with_salt(password, 10, salt_arr);

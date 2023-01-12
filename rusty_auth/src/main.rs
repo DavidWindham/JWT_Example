@@ -14,9 +14,9 @@ use r2d2::{Pool, PooledConnection};
 use dotenv::dotenv;
 
 mod auth;
-mod auth_errors;
 mod consts;
 mod db;
+mod errors;
 mod response;
 mod schema;
 mod user;

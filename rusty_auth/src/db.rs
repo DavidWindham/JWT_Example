@@ -1,17 +1,13 @@
 use crate::auth::RefreshToken;
+use crate::errors::db_errors::DatabaseError;
 use crate::schema::{refresh_tokens, users};
-use diesel::pg::PgConnection;
-
-use diesel::prelude::*;
-use dotenvy::dotenv;
-use std::env;
-
 use crate::user::{User, UserDB};
 use crate::DBPooledConnection;
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
+use std::env;
 
 pub fn establish_connection() -> PgConnection {
-    dotenv().ok();
-
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     PgConnection::establish(&database_url)
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
@@ -20,7 +16,7 @@ pub fn establish_connection() -> PgConnection {
 pub fn register_new_user_to_db(
     conn: &mut DBPooledConnection,
     new_user: User,
-) -> Result<User, String> {
+) -> Result<User, DatabaseError> {
     let user_db = new_user.to_user_db();
     let insert_call: Result<usize, diesel::result::Error> = diesel::insert_into(users::table)
         .values(&user_db)
@@ -29,10 +25,8 @@ pub fn register_new_user_to_db(
     let _user_insert_usize = match insert_call {
         Ok(user_insert_usize) => user_insert_usize,
         Err(e) => {
-            return Err(format!(
-                "Couldn't register user, user was likely already found: {}",
-                e
-            ));
+            println!("Error: {}", e);
+            return Err(DatabaseError::RegisterFailure(Box::new(e)));
         }
     };
 
@@ -49,7 +43,7 @@ pub fn login_user_against_db(
     conn: &mut DBPooledConnection,
     passed_username: String,
     passed_password_to_check: String,
-) -> Result<User, String> {
+) -> Result<User, DatabaseError> {
     use crate::schema::users::dsl::*;
     let user_call = users
         .filter(username.eq(passed_username))
@@ -59,7 +53,7 @@ pub fn login_user_against_db(
         Ok(user_db) => user_db,
         Err(e) => {
             eprintln!("Error getting user from DB: {}", e);
-            return Err(format!("Error getting user from DB: {}", e));
+            return Err(DatabaseError::LoginFailure(Box::new(e)));
         }
     };
 
@@ -69,13 +63,15 @@ pub fn login_user_against_db(
         Ok(validation_bool) => validation_bool,
         Err(e) => {
             eprintln!("Error calling validation: {}", e);
-            return Err(format!("Error trying to validate password: {}", e));
+            return Err(DatabaseError::CredentialsFailure(Box::new(e)));
         }
     };
 
     println!("Validation was: {}", validation_bool);
     if !validation_bool {
-        return Err("Password was invalid".to_string());
+        return Err(DatabaseError::Exception(
+            "Something strange happened".to_string(),
+        ));
     }
 
     return Ok(user_db.to_user());

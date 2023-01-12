@@ -1,5 +1,6 @@
 // use crate::consts::CONNECTION_POOL_ERROR;
 use crate::db::get_user_from_uuid;
+use crate::errors::auth_errors::access_token_errors::TokenError;
 use crate::user::User;
 use crate::{consts::APPLICATION_JSON, schema::refresh_tokens};
 use crate::{DBPool, DBPooledConnection};
@@ -12,7 +13,6 @@ use chrono::{Duration, NaiveDateTime, Utc};
 use diesel::Queryable;
 use hmac::{Hmac, Mac};
 use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token, VerifyWithKey};
-use rusty_auth::auth_errors::access_token_errors::TokenError;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::Sha384;
