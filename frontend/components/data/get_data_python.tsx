@@ -1,8 +1,8 @@
 import { Love_Light } from "@next/font/google";
-import { useState } from "react"
 import { AuthFetch } from "../../services/auth_fetch"
+import { Dispatch, SetStateAction, useState } from "react"
 
-export const GetDataPython = () => {
+export const GetDataPython = (props: genericProps) => {
     let [dataResponse, setDataResponse] = useState<string>('');
     let [statusColour, setStatusColour] = useState<string>('grey');
     const getData = () => {
@@ -21,6 +21,7 @@ export const GetDataPython = () => {
             .catch(error => {
                 // setDataResponse(error)
                 setStatusColour('red')
+                props.setLoggedIn(false)
             })
 
         setTimeout(() => {
@@ -34,4 +35,8 @@ export const GetDataPython = () => {
             <button onClick={getData} style={{ backgroundColor: statusColour, marginLeft: "1rem"  }}>Get Python Data</button>
         </div>
     </>
+}
+
+interface genericProps {
+    setLoggedIn: Dispatch<SetStateAction<boolean>>
 }

@@ -26,7 +26,7 @@ export const AuthFetch = {
         // request returned a 401 status, handle this case
         if (TokenStorage.shouldTokenRefresh()){
           TokenStorage.setRefreshFalse()
-          return TokenStorage.getNewToken()
+          return TokenStorage.getNewTokens()
             .then(() => {
               let newToken = TokenStorage.getAccessToken()
               if (newToken != null) {

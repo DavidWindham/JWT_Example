@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import TokenStorage from "../../services/token_storage";
 
-export const LoginRegisterParent = () => {
+export const LoginRegisterParent = (props: login_register_props) => {
     let [username, setUsername] = useState<string>('')
     let [password, setPassword] = useState<string>('')
 
@@ -38,6 +38,7 @@ export const LoginRegisterParent = () => {
                 }
                 TokenStorage.storeAccessAndRefreshTokens(bothTokenObject)
                 setLoginStatusColour('green')
+                props.setLoggedIn(true);
             })
             .catch(error => {
                 console.error(error)
@@ -84,6 +85,8 @@ export const LoginRegisterParent = () => {
     }
 
     return <>
+        {props.loggedInStatus ? 
+        <></> :
         <div>
             <div>
                 <div>
@@ -96,5 +99,11 @@ export const LoginRegisterParent = () => {
             <button onClick={login} style={{width:"50%", backgroundColor: loginStatusColour}}>Login</button>
             <button onClick={register} style={{width:"50%", backgroundColor: registerStatusColour}}>Register</button>
         </div>
+    }
     </>
+}
+
+interface login_register_props{
+    loggedInStatus: boolean
+    setLoggedIn: Dispatch<SetStateAction<boolean>>
 }

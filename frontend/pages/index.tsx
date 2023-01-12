@@ -13,6 +13,7 @@ import { LoginRegisterParent } from '../components/login/login_register_parent'
 const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
+  let [loggedIn, setLoggedIn] = useState<boolean>(false);
 
   const setArtificialAccessToken = () => {
     TokenStorage.storeAccessToken('fake_token')
@@ -26,15 +27,15 @@ export default function Home() {
       <div style={{width: "60%", marginLeft: "20%", marginRight: "20%", textAlign: "center"}}>
       <div>
           {/* <button onClick={setArtificialAccessToken}>SET ARTIFICIAL TOKEN</button> */}
-          <LoginRegisterParent />
+          <LoginRegisterParent loggedInStatus={loggedIn} setLoggedIn={setLoggedIn}/>
       </div>
       <div style={{marginTop: "2rem", marginBottom: "1rem"}}>
         Data fetching area
       </div>
       <div style={{display: "flex", width: "100%", marginRight: "1rem", marginBottom: "5rem"}}>
-        <GetDataPython />
-        <GetDataNext />
-        <AccessTokenCheckAgainstAuth />
+        <GetDataPython setLoggedIn={setLoggedIn}/>
+        <GetDataNext setLoggedIn={setLoggedIn}/>
+        <AccessTokenCheckAgainstAuth setLoggedIn={setLoggedIn}/>
       </div>
       </div>
     </>

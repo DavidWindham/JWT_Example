@@ -45,7 +45,7 @@ export class TokenStorage {
     return this.getAccessToken() !== null
   }
 
-  static getNewToken() {
+  static getNewTokens() {
     this.unload_old_access_token()
     return new Promise((resolve, reject) => {
         const data = {
@@ -63,7 +63,7 @@ export class TokenStorage {
         fetch('/api/auth/refresh_token', options)
             .then(response => response.json())
             .then(data => {
-                this.storeAccessToken(data.access_token)
+                this.storeAccessAndRefreshTokens({"access_token": data.access_token, "refresh_token": data.refresh_token})
                 this.setRefreshFalse()
                 resolve(data)
             })

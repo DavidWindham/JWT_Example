@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { AuthFetch } from "../../../services/auth_fetch";
+import { Dispatch, SetStateAction, useState } from "react"
 
-export const AccessTokenCheckAgainstAuth = () => {
+export const AccessTokenCheckAgainstAuth = (props: genericProps) => {
     let [dataResponse, setDataResponse] = useState<string>('');
     let [statusColour, setStatusColour] = useState<string>('grey');
     const getData = () => {
@@ -20,6 +20,7 @@ export const AccessTokenCheckAgainstAuth = () => {
             .catch(error => {
                 // setDataResponse(error)
                 setStatusColour('red')
+                props.setLoggedIn(false)
             })
         setTimeout(() => {
             setStatusColour('grey')
@@ -32,4 +33,8 @@ export const AccessTokenCheckAgainstAuth = () => {
             <button onClick={getData} style={{ backgroundColor: statusColour, marginLeft: "1rem" }}>Check Token Against Auth Server</button>
         </div>
     </>
+}
+
+interface genericProps {
+    setLoggedIn: Dispatch<SetStateAction<boolean>>
 }
