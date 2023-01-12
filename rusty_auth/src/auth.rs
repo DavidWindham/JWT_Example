@@ -1,9 +1,9 @@
-use crate::consts::CONNECTION_POOL_ERROR;
+// use crate::consts::CONNECTION_POOL_ERROR;
 use crate::db::get_user_from_uuid;
 use crate::user::User;
 use crate::{consts::APPLICATION_JSON, schema::refresh_tokens};
 use crate::{DBPool, DBPooledConnection};
-use actix_web::{web, HttpRequest};
+use actix_web::HttpRequest;
 use actix_web::{
     web::{Data, Json},
     HttpResponse,
@@ -86,7 +86,7 @@ pub struct RefreshTokenRequest {
 }
 
 impl RefreshTokenRequest {
-    pub fn get_refresh_token(&self) {}
+    pub fn _get_refresh_token(&self) {}
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -141,34 +141,41 @@ pub async fn verify_token(request: HttpRequest) -> HttpResponse {
 #[post("/refresh_token")]
 pub async fn refresh_token(
     refresh_token_request: Json<RefreshTokenRequest>,
-    pool: Data<DBPool>,
+    _pool: Data<DBPool>,
 ) -> HttpResponse {
-    let refresh_validation_call = is_refresh_token_valid(
-        refresh_token_request
-            .refresh_token
-            .clone()
-            .unwrap()
-            .as_str(),
-    );
-
-    let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
-    // let login_web_blocked_call =
-    // web::block(move || login_user_against_db(&mut conn, username, password)).await;
-
-    // RefreshTokenRequest.to_refresh_token()
-
-    let username = match refresh_validation_call {
-        Ok(un) => un,
-        Err(e) => {
-            eprintln!("Error validating refresh token, token is invalid: {}", e);
+    let passed_refresh_token_string = match refresh_token_request.refresh_token.clone() {
+        Some(refresh_token) => refresh_token,
+        None => {
             return HttpResponse::Unauthorized()
                 .content_type(APPLICATION_JSON)
-                .json(json!({ "status": e }));
+                .json(json!({ "status": "No token in header" }))
         }
     };
 
-    let new_access_token_call = generate_access_token(username.clone());
-    let new_access_token = match new_access_token_call {
+    let username = match is_refresh_token_valid(&passed_refresh_token_string.as_str()) {
+        Ok(username) => username,
+        Err(e) => {
+            return HttpResponse::Unauthorized()
+                .content_type(APPLICATION_JSON)
+                .json(json!({
+                    "status": format!("Refresh Token was invalid: {}", e.to_string())
+                }));
+        }
+    };
+
+    // Could check against the DB if needed
+    // let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
+    // let login_web_blocked_call =
+    // web::block(move || login_user_against_db(&mut conn, username, password)).await;
+    // RefreshTokenRequest.to_refresh_token()
+
+    // TODO: Blacklist old refresh token before generating  new tokens
+    // TODO: Add checks during this blacklist, listed below
+    //      already blacklisted - token is being used by 2 different sessions, token hijacked, or localstorage sync issue
+    //      perhaps some sort of IP hashing
+    //      or fingerprinting hashing, validate against this
+
+    let new_access_token = match generate_access_token(username.clone()) {
         Ok(new_access_token) => new_access_token,
         Err(e) => {
             return HttpResponse::Unauthorized()
@@ -179,8 +186,7 @@ pub async fn refresh_token(
         }
     };
 
-    let new_refresh_token_call = generate_refresh_token(username);
-    let new_refresh_token = match new_refresh_token_call {
+    let new_refresh_token = match generate_refresh_token(username) {
         Ok(new_refresh_token) => new_refresh_token,
         Err(e) => {
             return HttpResponse::Unauthorized()
@@ -196,23 +202,56 @@ pub async fn refresh_token(
         .json(json!({ "access_token": new_access_token, "refresh_token": new_refresh_token }));
 }
 
-pub fn generate_access_token(username: String) -> Result<String, String> {
+pub fn generate_access_token(username: String) -> Result<String, TokenError> {
     let access_token_secret =
         env::var("ACCESS_TOKEN_SECRET").expect("ACCESS_TOKEN_SECRET must be set");
-
     let access_token_seconds = env::var("ACCESS_TOKEN_EXPIRE_SECONDS")
         .expect("DATABASE_URL must be set")
         .parse::<i64>()
         .unwrap();
 
-    let key: Hmac<Sha384> = Hmac::new_from_slice(access_token_secret.as_bytes()).unwrap();
+    generate_token(access_token_secret, access_token_seconds, username)
+}
+
+pub fn generate_refresh_token(username: String) -> Result<String, TokenError> {
+    let refresh_token_secret =
+        env::var("REFRESH_TOKEN_SECRET").expect("REFRESH_TOKEN_SECRET must be set");
+    let refresh_token_seconds = env::var("REFRESH_TOKEN_EXPIRE_SECONDS")
+        .expect("DATABASE_URL must be set")
+        .parse::<i64>()
+        .unwrap();
+
+    generate_token(refresh_token_secret, refresh_token_seconds, username)
+}
+
+pub fn is_access_token_valid(token_str: &str) -> Result<String, TokenError> {
+    let access_token_secret =
+        env::var("ACCESS_TOKEN_SECRET").expect("ACCESS_TOKEN_SECRET must be set");
+
+    validate_token(token_str, access_token_secret)
+}
+
+pub fn is_refresh_token_valid(token_str: &str) -> Result<String, TokenError> {
+    let secret = env::var("REFRESH_TOKEN_SECRET").expect("REFRESH_TOKEN_SECRET must be set");
+
+    validate_token(token_str, secret)
+}
+
+fn generate_token(secret: String, seconds: i64, username: String) -> Result<String, TokenError> {
+    let key: Hmac<Sha384> = match Hmac::new_from_slice(secret.as_bytes()) {
+        Ok(key) => key,
+        Err(e) => {
+            eprintln!("Error getting hmac: {}", e);
+            return Err(TokenError::UnableToGetHmacKey);
+        }
+    };
     let header = Header {
         algorithm: AlgorithmType::Hs384,
         ..Default::default()
     };
 
     let iat_epoch = Utc::now().naive_utc().timestamp();
-    let exp_epoch = (Utc::now() + Duration::seconds(access_token_seconds))
+    let exp_epoch = (Utc::now() + Duration::seconds(seconds))
         .naive_utc()
         .timestamp();
 
@@ -234,22 +273,27 @@ pub fn generate_access_token(username: String) -> Result<String, String> {
     let token = match Token::new(header, claims).sign_with_key(&key) {
         Ok(token) => token,
         Err(e) => {
-            eprintln!("Error getting token signed with key");
-            return Err(format!("Error getting token: {}", e));
+            eprintln!("Error getting token signed with key: {}", e);
+            return Err(TokenError::UnableToSign);
         }
     };
 
+    // RefreshTokenDB::new()
+
+    // let RefreshToken =
     return Ok(token.as_str().to_string());
 }
 
-pub fn is_access_token_valid(token_str: &str) -> Result<String, TokenError> {
-    let access_token_secret =
-        env::var("ACCESS_TOKEN_SECRET").expect("ACCESS_TOKEN_SECRET must be set");
-
-    let key: Hmac<Sha384> = Hmac::new_from_slice(access_token_secret.as_bytes()).unwrap();
+fn validate_token(token_str: &str, secret: String) -> Result<String, TokenError> {
+    let key: Hmac<Sha384> = match Hmac::new_from_slice(secret.as_bytes()) {
+        Ok(key) => key,
+        Err(e) => {
+            eprintln!("Error getting hmac: {}", e);
+            return Err(TokenError::UnableToGetHmacKey);
+        }
+    };
     let token_call: Result<Token<Header, BTreeMap<String, Value>, _>, _> =
         token_str.verify_with_key(&key);
-
     let token = match token_call {
         Ok(token) => token,
         Err(e) => {
@@ -262,6 +306,7 @@ pub fn is_access_token_valid(token_str: &str) -> Result<String, TokenError> {
     let claims = token.claims();
     if header.algorithm != AlgorithmType::Hs384 {
         return Err(TokenError::InvalidHeaderAlgorithm);
+        // return Err("Header has the incorrect algorithm".to_string());
     }
 
     let expiry = match claims["exp"].as_i64() {
@@ -274,7 +319,7 @@ pub fn is_access_token_valid(token_str: &str) -> Result<String, TokenError> {
 
     let exp_naive_datetime = match NaiveDateTime::from_timestamp_opt(expiry, 0) {
         Some(exp) => exp,
-        None => return Err(TokenError::InvalidToken),
+        None => return Err(TokenError::InvalidExpiry),
     };
 
     if exp_naive_datetime < Utc::now().naive_utc() {
@@ -282,98 +327,10 @@ pub fn is_access_token_valid(token_str: &str) -> Result<String, TokenError> {
         return Err(TokenError::ExpiredToken);
     }
 
-    return Ok("Token is valid".to_string());
-}
-
-pub fn generate_refresh_token(username: String) -> Result<String, String> {
-    let refresh_token_secret =
-        env::var("REFRESH_TOKEN_SECRET").expect("REFRESH_TOKEN_SECRET must be set");
-    let refresh_token_seconds = env::var("REFRESH_TOKEN_EXPIRE_SECONDS")
-        .expect("DATABASE_URL must be set")
-        .parse::<i64>()
-        .unwrap();
-
-    let key: Hmac<Sha384> = Hmac::new_from_slice(refresh_token_secret.as_bytes()).unwrap();
-    let header = Header {
-        algorithm: AlgorithmType::Hs384,
-        ..Default::default()
+    let username = match claims["username"].as_str() {
+        Some(username) => username,
+        None => return Err(TokenError::MissingBodyKey),
     };
 
-    let iat_epoch = Utc::now().naive_utc().timestamp();
-    let exp_epoch = (Utc::now() + Duration::seconds(refresh_token_seconds))
-        .naive_utc()
-        .timestamp();
-
-    let registered_claims = RegisteredClaims {
-        issuer: Some("RustyAuth".to_string()),
-        expiration: Some(exp_epoch as u64),
-        issued_at: Some(iat_epoch as u64),
-        ..Default::default()
-    };
-
-    // Set registered claims
-    let mut claims = Claims::new(registered_claims);
-
-    // Insert additional claims here, this would be outsourced to add specific roles
-    let mut additional_claims: BTreeMap<String, Value> = BTreeMap::new();
-    additional_claims.insert("username".to_string(), json!(username));
-    claims.private = additional_claims;
-
-    let token = match Token::new(header, claims).sign_with_key(&key) {
-        Ok(token) => token,
-        Err(e) => {
-            eprintln!("Error getting token signed with key");
-            return Err(format!("Error getting token: {}", e));
-        }
-    };
-
-    // RefreshTokenDB::new()
-
-    // let RefreshToken =
-    return Ok(token.as_str().to_string());
-}
-
-pub fn is_refresh_token_valid(token_str: &str) -> Result<String, String> {
-    let refresh_token_secret =
-        env::var("REFRESH_TOKEN_SECRET").expect("REFRESH_TOKEN_SECRET must be set");
-
-    let key: Hmac<Sha384> = Hmac::new_from_slice(refresh_token_secret.as_bytes()).unwrap();
-    let token_call: Result<Token<Header, BTreeMap<String, Value>, _>, _> =
-        token_str.verify_with_key(&key);
-
-    let token = match token_call {
-        Ok(token) => token,
-        Err(e) => {
-            eprintln!("Error verifying token, token is invalid: {}", e);
-            return Err(
-                "Refresh Token could not be verified, it's likely been tampered with".to_string(),
-            );
-        }
-    };
-
-    let header = token.header();
-    let claims = token.claims();
-    if header.algorithm != AlgorithmType::Hs384 {
-        return Err("Header has the incorrect algorithm".to_string());
-    }
-
-    let expiry = match claims["exp"].as_i64() {
-        Some(expiry) => expiry,
-        None => {
-            eprintln!("Error unwrapping expiry");
-            return Err("Could not digest token, expiery error".to_string());
-        }
-    };
-
-    let exp_naive_datetime = match NaiveDateTime::from_timestamp_opt(expiry, 0) {
-        Some(exp) => exp,
-        None => return Err("Could not create expiry datetime".to_string()),
-    };
-
-    if exp_naive_datetime < Utc::now().naive_utc() {
-        println!("Token has expired");
-        return Err("Token expired".to_string());
-    }
-
-    return Ok(claims["username"].as_str().unwrap().to_string());
+    return Ok(username.to_string());
 }

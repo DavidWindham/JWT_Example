@@ -8,6 +8,9 @@ pub enum TokenError {
     InvalidToken,
     InvalidHeaderAlgorithm,
     InvalidExpiry,
+    UnableToSign,
+    UnableToGetHmacKey,
+    MissingBodyKey,
 }
 
 impl fmt::Display for TokenError {
@@ -19,6 +22,9 @@ impl fmt::Display for TokenError {
                 write!(f, "token header contains incorrect or missing algorithm")
             }
             TokenError::InvalidExpiry => write!(f, "token is invalid"),
+            TokenError::UnableToSign => write!(f, "unable to sign token"),
+            TokenError::UnableToGetHmacKey => write!(f, "unable to get hmac key"),
+            TokenError::MissingBodyKey => write!(f, "unable to find requested key"),
         }
     }
 }
@@ -30,6 +36,9 @@ impl error::Error for TokenError {
             TokenError::InvalidToken => None,
             TokenError::InvalidHeaderAlgorithm => None,
             TokenError::InvalidExpiry => None,
+            TokenError::UnableToSign => None,
+            TokenError::UnableToGetHmacKey => None,
+            TokenError::MissingBodyKey => None,
         }
     }
 }
