@@ -18,6 +18,18 @@ This example has some serious drawbacks, do not use this, this is for demo purpo
 
 But with that disclaimer out the way, let's get on with deploying this.
 
+## Project Structure Description
+
+The functions are the 4 .ts files in the `/src` folder. They each have the function "handler" that's referenced in the template.yml with the line "Handler: register.handler". This is what defines the entrypoint to each lambda function.
+
+All 4 functions have the dependency jwt.ts within the dependencies folder. Because this is a local dependency, when the project is compiled, this code will be included in all compiled functions. This is different to the external dependencies for which we use a lambda layer.
+
+The functions will be compiled during deployment, but if you want to compile it yourself, run `npm run build` in /src. If you want it to recompile instantly as you make changes to the .ts files, navigate to /src and run `npm run watch`. This will watch for changes and automatically build continuously.
+
+The lambda layer `all-dependencies` is located with `/src/layers/` and will be built with the second shell script (seen in deployment)
+
+Everthing else in the project is described in the template.yaml or is generated from the build scripts (the bucket ID and the lambda layer ARN).
+
 ## Deployment
 
 This assumes you have AWS-CLI setup and you're logged in with an IAM user with the correct permissions.
