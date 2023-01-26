@@ -12,7 +12,7 @@ We have 3 environment variables for this service.
 `DATA_API_ADDRESS`
   The address of the Python data API endpoint
   
- 'ACCESS_TOKEN_SECRET'
+ `ACCESS_TOKEN_SECRET`
   By default this is set to 'access-token-secret'. If this is changed, it must be changed for all services being used
 
 
