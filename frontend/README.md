@@ -1,7 +1,7 @@
 
 ## Environment Variables
 
-We have 3 environment variables for this service.
+We have 3 environment variables for this service within the .env file.
 
 `AUTH_API_ADDRESS`
   The address of either the Rust auth API, or the Lambda API Gateway. Do n ote the gateway must have "/api/" on the end
