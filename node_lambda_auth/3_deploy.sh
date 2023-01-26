@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 cd src
+npm install
 npm run build
 cd ..
 ARTIFACT_BUCKET=$(cat bucket-name.txt)
