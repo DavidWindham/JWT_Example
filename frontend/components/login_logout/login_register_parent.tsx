@@ -110,7 +110,7 @@ export const LoginRegisterParent = (props: login_register_props) => {
                     Username: <input onChange={onUsernameChange} value={username}></input>
                 </div>
                 <div>
-                    Password: <input onChange={onPasswordChange} value={password}></input> 
+                    Password: <input onChange={onPasswordChange} type="password" value={password}></input> 
                 </div>
             </div>
             <button onClick={login} style={{width:"50%", backgroundColor: loginStatusColour}}>Login</button>
