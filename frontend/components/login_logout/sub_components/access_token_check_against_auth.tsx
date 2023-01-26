@@ -22,9 +22,11 @@ export const AccessTokenCheckAgainstAuth = (props: genericProps) => {
                 setStatusColour('red')
                 props.setLoggedIn(false)
             })
-        setTimeout(() => {
-            setStatusColour('grey')
-        }, 1000)
+            .finally(() => {
+                setTimeout(() => {
+                    setStatusColour('grey')
+                }, 1000)
+            })
     }
 
     return <>

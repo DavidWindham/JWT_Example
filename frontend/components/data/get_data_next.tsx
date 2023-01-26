@@ -2,29 +2,28 @@ import { Dispatch, SetStateAction, useState } from "react"
 import { AuthFetch } from "../../services/auth_fetch"
 
 export const GetDataNext = (props: genericProps) => {
-    let [dataResponse, setDataResponse] = useState<string>('');
     let [statusColour, setStatusColour] = useState<string>('grey');
     const getData = () => {
         AuthFetch.fetch('/api/data_js/get_data', {method: 'POST'})
-        .then((response) => {
+            .then((response) => {
                 if (response.status !== 200){
                     throw new Error('Invalid status code: ' + response.status);
                 }
                 return response.json()
             })
-        .then((data) => {
-            console.log(data);
-            // setDataResponse(data)
-            setStatusColour('green')
-        })
-        .catch(error => {
-            // setDataResponse(error)
-            setStatusColour('red')
-            props.setLoggedIn(false);
-        })
-        setTimeout(() => {
-            setStatusColour('grey')
-        }, 1000)
+            .then((data) => {
+                console.log(data);
+                setStatusColour('green')
+            })
+            .catch(error => {
+                setStatusColour('red')
+                props.setLoggedIn(false);
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setStatusColour('grey')
+                }, 1000)
+            })
     }
 
     return <>

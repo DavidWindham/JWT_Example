@@ -1,9 +1,7 @@
-import { Love_Light } from "@next/font/google";
 import { AuthFetch } from "../../services/auth_fetch"
 import { Dispatch, SetStateAction, useState } from "react"
 
 export const GetDataPython = (props: genericProps) => {
-    let [dataResponse, setDataResponse] = useState<string>('');
     let [statusColour, setStatusColour] = useState<string>('grey');
     const getData = () => {
         AuthFetch.fetch('/api/data_py/get_data', {method: 'POST'})
@@ -15,18 +13,17 @@ export const GetDataPython = (props: genericProps) => {
             })
             .then((data) => {
                 console.log(data);
-                // setDataResponse(data)
                 setStatusColour('green')
             })
             .catch(error => {
-                // setDataResponse(error)
                 setStatusColour('red')
                 props.setLoggedIn(false)
             })
-
-        setTimeout(() => {
-            setStatusColour('grey')
-        }, 1000)
+            .finally(() => {
+                setTimeout(() => {
+                    setStatusColour('grey')
+                }, 1000)
+            })
     }
 
     return <>

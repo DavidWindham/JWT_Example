@@ -21,8 +21,6 @@ export const LoginRegisterParent = (props: login_register_props) => {
             password: password
         };
 
-        console.log("Un/pw: ", data);
-
         const options = {
             method: 'POST',
             body: JSON.stringify(data),
@@ -45,16 +43,17 @@ export const LoginRegisterParent = (props: login_register_props) => {
                 }
                 TokenStorage.storeAccessAndRefreshTokens(bothTokenObject)
                 setLoginStatusColour('green')
-                props.setLoggedIn(true);
+                props.setLoggedIn(true)
             })
             .catch(error => {
                 console.error(error)
                 setLoginStatusColour('red')
             })
-        
-        setTimeout(() => {
-            setLoginStatusColour('grey')
-        }, 1000)
+            .finally(() => {
+                setTimeout(() => {
+                    setLoginStatusColour('grey')
+                }, 1000)
+            })
     }
 
     const register = async () => {
@@ -85,15 +84,17 @@ export const LoginRegisterParent = (props: login_register_props) => {
                 }
                 TokenStorage.storeAccessAndRefreshTokens(bothTokenObject)
                 setRegisterStatusColour('green')
+                props.setLoggedIn(true)
             })
             .catch(error => {
                 console.error(error)
                 setRegisterStatusColour('red')
-            });
-
-        setTimeout(() => {
-            setRegisterStatusColour('grey')
-        }, 1000)
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setLoginStatusColour('grey')
+                }, 1000)
+            })
     }
 
     const logout = async () => {
