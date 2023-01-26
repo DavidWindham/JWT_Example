@@ -16,3 +16,8 @@ We have 3 environment variables for this service within the .env file.
   By default this is set to 'access-token-secret'. If this is changed, it must be changed for all services being used
 
 
+## Deployment
+
+1. `npm install` Install the application and all its dependencies
+2. Set the .env arguments (not strictly required just to start the application)
+2. `npm run dev` to start the webserver
