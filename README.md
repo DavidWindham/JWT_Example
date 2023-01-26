@@ -1,6 +1,7 @@
 # JWT_Example
 
-We have 4 individual services within this project
+We have 4 individual services within this project and all use environment variables for the access token secret. Each readme will have a brief section about how to set the environment variable.
+
 ### Rust based authentication service
 * Generates JWT's
 * Leverages a Postgres database to store user records
