@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An Node based AWS Lambda Authentication System that's dog slow due to cold booting.
+Resources:
+  AccessTokenParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: access-token-secret
+      Type: String
+      Value: AccessTokenSecret
+  RefreshTokenParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: refresh-token-secret
+      Type: String
+      Value: RefershTokenSecret
+  api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: api
+      TracingEnabled: true
+      OpenApiVersion: 3.0.2
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: TestAuthKey
+      Description: API Key for protecting auth gateway
+      Enabled: true
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: UsagePlan
+      Description: Plan for testing auth with 1000 calls a day limit
+      Quota:
+        Limit: 1000
+        Period: DAY
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+  registerfunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: register.handler
+      Runtime: nodejs14.x
+      CodeUri: src/dist/
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:all-dependencies-layer:10
+      Description: Registers user
+      Timeout: 10
+      Environment:
+        Variables:
+          ACCESS_TOKEN_SECRET: !Ref AccessTokenParameter
+          REFRESH_TOKEN_SECRET: !Ref RefreshTokenParameter
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambda_ReadOnlyAccess
+        - AWSXrayWriteOnlyAccess
+        - CloudWatchLogsFullAccess
+        - DynamoDBCrudPolicy:
+            TableName: UserTable
+      Tracing: Active
+      Events:
+        getEndpoint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref api
+            Path: /register
+            Method: POST
+            Auth:
+              ApiKeyRequired: true
+  loginfunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: login.handler
+      Runtime: nodejs14.x
+      CodeUri: src/dist/
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:all-dependencies-layer:10
+      Description: Logs in the user
+      Timeout: 10
+      Environment:
+        Variables:
+          ACCESS_TOKEN_SECRET: !Ref AccessTokenParameter
+          REFRESH_TOKEN_SECRET: !Ref RefreshTokenParameter
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambda_ReadOnlyAccess
+        - AWSXrayWriteOnlyAccess
+        - CloudWatchLogsFullAccess
+        - DynamoDBCrudPolicy:
+            TableName: UserTable
+      Tracing: Active
+      Events:
+        getEndpoint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref api
+            Path: /login
+            Method: POST
+            Auth:
+              ApiKeyRequired: true
+  refreshtokenfunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: refresh-token.handler
+      Runtime: nodejs14.x
+      CodeUri: src/dist/
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:all-dependencies-layer:10
+      Description: Refresh the access token
+      Timeout: 10
+      Environment:
+        Variables:
+          ACCESS_TOKEN_SECRET: !Ref AccessTokenParameter
+          REFRESH_TOKEN_SECRET: !Ref RefreshTokenParameter
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambda_ReadOnlyAccess
+        - AWSXrayWriteOnlyAccess
+        - CloudWatchLogsFullAccess
+        - DynamoDBCrudPolicy:
+            TableName: UserTable
+      Tracing: Active
+      Events:
+        getEndpoint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref api
+            Path: /refresh_token
+            Method: POST
+            Auth:
+              ApiKeyRequired: true
+  verifyfunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: verify-token.handler
+      Runtime: nodejs14.x
+      CodeUri: src/dist/
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:all-dependencies-layer:10
+      Description: Verifies the access token
+      Timeout: 10
+      Environment:
+        Variables:
+          ACCESS_TOKEN_SECRET: !Ref AccessTokenParameter
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambda_ReadOnlyAccess
+        - AWSXrayWriteOnlyAccess
+        - CloudWatchLogsFullAccess
+        - DynamoDBCrudPolicy:
+            TableName: UserTable
+      Tracing: Active
+      Events:
+        getEndpoint:
+          Type: Api
+          Properties:
+            RestApiId: !Ref api
+            Path: /verify_token
+            Method: POST
+            Auth:
+              ApiKeyRequired: true
+  UserTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: 'UserTable'
+      AttributeDefinitions:
+        - AttributeName: 'id'
+          AttributeType: 'S'
+        - AttributeName: 'username'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'id'
+          KeyType: 'HASH'
+        - AttributeName: 'username'
+          KeyType: 'RANGE'
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
