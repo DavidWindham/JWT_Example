@@ -30,6 +30,8 @@ The lambda layer `all-dependencies` is located with `/src/layers/` and will be b
 
 Everthing else in the project is described in the template.yaml or is generated from the build scripts (the bucket ID and the lambda layer ARN).
 
+There are 2 Environment Variables that are set in the `template.yaml`, the ACCESS_TOKEN_SECRET and REFRESH_TOKEN_SECRET. These are at the top of the .yml file for ease of access. The Access Token Secret will be used in the other parts of this system, so this is where you set that value. By default it's set to "access-token-secret"
+
 ## Deployment
 
 This assumes you have AWS-CLI setup and you're logged in with an IAM user with the correct permissions.
